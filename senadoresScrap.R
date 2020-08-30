@@ -4,7 +4,7 @@ library(xml2)
 library(rvest)
 library(httr)
 library(chron)
-
+rm(list = ls())
 url <- 'https://www25.senado.leg.br/web/transparencia/sen/outras-legislaturas'
 page_html <-  read_html(url) 
 senadores <- (html_nodes(page_html, '#senadoreslegislaturasanteriores-tabela-senadores') %>% html_table(fill = TRUE))[[1]]
@@ -36,6 +36,7 @@ dataGooglenews <- function(pesquisa){
   nextPage <- page_html %>% html_nodes(xpath = '//a[@class="nBDE1b G5eFlf"]') %>% html_attr('href')
   while (length(nextPage)!=0) {
     page_html <- str_c('https://www.google.com',nextPage) %>%  read_html()
+    if (str_detect(v1,'sorry')) { return('robot')  }
     noticias <- c(noticias,xml_find_all(page_html,'//div[@class="BNeawe vvjwJb AP7Wnd"]') %>% html_text() )
     nextPage <- (page_html %>% html_nodes(xpath = '//a[@class="nBDE1b G5eFlf"]') %>% html_attr('href'))[length((page_html %>% html_nodes(xpath = '//a[@class="nBDE1b G5eFlf"]') %>% html_attr('href')))]
     espera <- runif(1,10.5,27) 
@@ -46,23 +47,26 @@ dataGooglenews <- function(pesquisa){
 google_shearch <- function(busca,inic=1){
   for (i in inic:length(busca)) {
     x <- length(busca)
+    if (length(busca)==1){
+      noticias <- dataGooglenews(busca[i])
+      noticias <- data.frame(Nome = rep(busca[i],length(noticias)),g1.com = noticias) 
+      return(noticias)
+    }
     if (i == 1) {
       noticias <- dataGooglenews(busca[i])
-      noticias <- data.frame(Nome = rep(senadores$Nome[i],length(noticias)),g1.com = noticias) 
-      print(i)
-      print(i/x)
+      noticias <- data.frame(Nome = rep(busca[i],length(noticias)),g1.com = noticias) 
       i=i+1
     }
     espera <- runif(1,5.3,50) 
     Sys.sleep(espera)
     aux <- dataGooglenews(busca[i])
     if(length(aux)==0) aux <- NA
+    if (!is.na(aux)) {
+     }
     noticias <- rbind(noticias,data.frame(
-      Nome = rep(senadores$Nome[i],length(aux)),
+      Nome = rep(busca[i],length(aux)),
       g1.com = aux))
   }
-  print(i)
-  print(i/x)
   return(noticias)
 }
 rm_accent <- function(str,pattern="all") {
@@ -96,33 +100,28 @@ rm_accent <- function(str,pattern="all") {
 }
 
 
+
 busca <- rm_accent(senadores$Nome)
-busca <- str_c('site:g1.globo.com intitle:',busca,' reu') 
-
-
-not1 <- google_shearch(busca[1:10])
-not2 <- google_shearch(busca[11:20])
-not3 <- google_shearch(busca[21:30])
-
-
-pesquisa <- busca[21:30][1]
-busca <- busca[21:31][1]
-
-google_shearch(busca[15:20])
-
-busca[11:20]
-busca[11:20][6]
+busca <- str_c('site:g1.globo.com intitle:',busca,' reu')
 
 
 
+a <- list()
+for (i in 1:length(busca)) {
+  a[[i]] <- google_shearch(busca[i])
 
-#link site
-page_html %>% html_nodes(xpath = '//div[@class="ZINbbc xpd O9g5cc uUPGi"]/div[@class="kCrYT"]/a') %>% html_attr('href')    
-#link noticias
-v1 <- page_html %>% html_nodes(xpath = '//div[@id="main"]/div[1]/div[1]/div[1]/div[1]/div/a');v1[[1]]
-#
-v1 <- page_html %>% html_nodes(xpath = '//a[@class="nBDE1b G5eFlf"]'); v1[[1]]
-xml2::download_html(v1,file = "html32d")
+}
+
+for (i in 27:length(busca)) {
+  print(i)
+  a[[i]] <- google_shearch(busca[i])
+  
+}
+
+not <- rbind_list(a)
+setwd("~/GitHub/Senadores_scrap")
+#save.image("~/GitHub/Senadores_scrap/Workspace.RData")
+#load("~/GitHub/Senadores_scrap/Workspace.RData")
 
 
 bing <- 'www.bing.com/search?q='
